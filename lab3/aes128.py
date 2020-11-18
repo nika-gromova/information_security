@@ -1,6 +1,3 @@
-import hashlib
-
-
 nb = 4  # number of columns of State (for AES = 4)
 nr = 10  # number of rounds (if nb = 4 nr = 10)
 nk = 4  # the key length (in 32-bit words)
@@ -64,7 +61,7 @@ def shift_right(row):
 
 
 def multiple_2(number):
-    if number > 0x80:
+    if number >= 0x80:
         res = (number << 1) ^ 0x1b
     else:
         res = (number << 1)
@@ -196,8 +193,7 @@ def encrypt_block(block, key):
         for column in range(nb):
             state[row].append(block[column * 4 + row])
 
-    hash_key = hashlib.md5(key).digest()
-    round_keys = key_expansion(hash_key)
+    round_keys = key_expansion(key)
     state = add_round_key(state, round_keys)
 
     for i in range(1, nr):
@@ -217,3 +213,30 @@ def encrypt_block(block, key):
 
     return result
 
+
+def decrypt_block(block, key):
+    state = [[] for i in range(4)]
+
+    for row in range(4):
+        for column in range(nb):
+            state[row].append(block[column * 4 + row])
+
+    round_keys = key_expansion(key)
+    state = add_round_key(state, round_keys, nr)
+
+    for i in range(nr - 1, 0, -1):
+        state = shift_rows(state, encrypt=False)
+        state = sub_bytes(state, encrypt=False)
+        state = add_round_key(state, round_keys, i)
+        state = mix_columns(state, encrypt=False)
+
+    state = shift_rows(state, encrypt=False)
+    state = sub_bytes(state, encrypt=False)
+    state = add_round_key(state, round_keys, 0)
+
+    result = [None for i in range(4 * nb)]
+    for row in range(4):
+        for column in range(nb):
+            result[row + 4 * column] = state[row][column]
+
+    return result
